@@ -1,6 +1,6 @@
 # pytranslate
 
-Free translation service using different APIs
+Translate files for free using different APIs
 
 ## Requirements
 
