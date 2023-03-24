@@ -15,7 +15,11 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-## Supported APIs
+## Supported
+### File extension
+- ASS (Advanced Substation Alpha)
+
+### API
 
 - Google
 - Deepl
