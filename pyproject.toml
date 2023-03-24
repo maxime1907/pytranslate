@@ -1,0 +1,28 @@
+[tool.black]
+line-length = 120
+target-version = ['py310']
+workers = 4
+exclude = '''
+
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+  | es_utils
+  | alembic
+  | documentation
+)
+'''
+
+[tool.bandit]
+exclude_dirs = ["./.git", "./tests", "./.venv"]
+skips = ["B104", "B201", "B601"]
