@@ -1,0 +1,60 @@
+name: Python test
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - "**/*.md"
+      - "documentation/**"
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - "**/*.md"
+      - "documentation/**"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - '3.12'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python-version }}"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Linting and formatting with ruff
+        run: |
+          ruff check .
+          ruff format . --diff
+
+      - name: Linting with pyright
+        run: |
+          pyright --warnings --project pyproject.toml
+
+      - name: Dependency scanning with safety
+        run: |
+          safety --disable-optional-telemetry check -r requirements.txt --full-report
+
+      # - name: Test with pytest
+      #   run: |
+      #     pytest --verbose . --junitxml=junit.xml
+
+      # - name: Publish Test Report
+      #   uses: mikepenz/action-junit-report@v4
+      #   if: always() # always run even if the previous step fails
+      #   with:
+      #     report_paths: "junit.xml"
