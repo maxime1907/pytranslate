@@ -14,12 +14,10 @@ on:
     tags:
       - 'v*.*.*'
     branches:
-      - 'main'
       - 'master'
   pull_request:
     branches:
       - master
-      - main
 
 env:
   REGISTRY: ghcr.io
