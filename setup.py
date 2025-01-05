@@ -33,15 +33,10 @@ extra_dependencies: dict[str, list[str]] = {}
 
 extra_dependencies["all"] = list(set(sum(extra_dependencies.values(), [])))
 extra_dependencies["dev"] = extra_dependencies["all"] + [
-    # Linting
-    "autoflake",
-    "flake8",
-    "flake8-bugbear",
-    "flake8-quotes",
-    "isort",
-    "black==22.10.0",
-    "mypy>=1.0.1",
-    "pyupgrade>=3.3.1",
+    "ruff",
+    "pyright",
+    "safety",
+    "pytest",
 ]
 
 setup(
@@ -56,11 +51,11 @@ setup(
     package_dir={"": "src"},
     include_package_data=True,
     zip_safe=True,
-    python_requires=">=3.10",
+    python_requires=">=3.12",
     install_requires=dependencies,
     extras_require=extra_dependencies,
     classifiers=[
-        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
     ],

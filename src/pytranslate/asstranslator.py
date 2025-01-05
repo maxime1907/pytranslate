@@ -2,6 +2,7 @@ import logging
 import os
 import time
 import traceback
+from typing import cast
 
 from deepl import deepl
 from googletrans import Translator
@@ -34,7 +35,7 @@ class ASSTranslator:
         self.headeradded = False
         self.sleeptime = 10
         self.deeplsleeptime = 3
-        self.deepllinelimit = 400
+        self.deeplcharlimit = 1500
         self.index_recombine = 0
         self.batch_size = 50
 
@@ -43,18 +44,27 @@ class ASSTranslator:
 
     def googletranslate(self, to_translate: list[str]) -> list[Translated]:
         translator = Translator()
-        return translator.translate(to_translate, dest=self.tolang)
+        return cast(
+            list[Translated], translator.translate(to_translate, dest=self.tolang)
+        )
+
+    def deeplcli_formatted_input(self, to_translate: list[str] | str) -> str:
+        my_to_translate: str = ""
+        if isinstance(to_translate, list):
+            my_to_translate = "\n".join(to_translate)
+        return my_to_translate
+
+    def deeplcli_formatted_output(self, translated: str) -> list[str]:
+        return translated.split("\n")
 
     def deeplcli(self, to_translate: list[str] | str) -> list[Translated]:
         translated: list[Translated] = []
 
         try:
             deepl_client = deepl.DeepLCLI(self.fromlang.lower(), self.tolang.lower())
-            my_to_translate = to_translate
-            if isinstance(to_translate, list):
-                my_to_translate = "\n".join(to_translate)
+            my_to_translate = self.deeplcli_formatted_input(to_translate)
             my_translated: str = deepl_client.translate(my_to_translate)
-            my_translated_list = my_translated.split("\n")
+            my_translated_list = self.deeplcli_formatted_output(my_translated)
             for my_translated_str in my_translated_list:
                 translated.append(Translated(text=my_translated_str))
             logger.debug("Next request in " + str(self.deeplsleeptime) + " seconds...")
@@ -62,7 +72,9 @@ class ASSTranslator:
         except Exception as e:
             logger.debug("deeplcli:")
             logger.debug(e)
-            logger.debug("Retrying to translate in " + str(self.sleeptime) + " seconds...")
+            logger.debug(
+                "Retrying to translate in " + str(self.sleeptime) + " seconds..."
+            )
             time.sleep(self.sleeptime)
             return self.deeplcli(to_translate)
         return translated
@@ -120,6 +132,9 @@ class ASSTranslator:
                 line = line.replace(special_char[1], special_char[0])
         return line
 
+    def count_characters(self, strings: list[str] | str) -> int:
+        return sum(len(s) for s in strings)
+
     def translate(self, to_translate: list[str]) -> list[Translated]:
         translations: list[Translated] = []
 
@@ -128,15 +143,30 @@ class ASSTranslator:
             self.append_lines_file(translations)
         else:
             max_value = 0
-            for i in range(self.batch_size, len(to_translate), self.batch_size):
+            i = self.batch_size
+            while i < len(to_translate):
                 if max_value == i:
                     break
+
+                y = i
+                if self.api == "deepl":
+                    char_count = -1
+                    while char_count < 0 or char_count >= self.deeplcharlimit:
+                        char_count = self.count_characters(
+                            self.deeplcli_formatted_input(to_translate[max_value:y])
+                        )
+                        y = y - 1
+                    i = y
+                else:
+                    char_count = self.count_characters(to_translate[max_value:y])
+
                 logger.info(
-                    f"Processing line <{max_value}> to <{i}>",
+                    f"Processing line <{max_value}> to <{i}> (Characters: {char_count})",
                 )
                 translations += self.translate_sentence(to_translate[max_value:i])
                 self.append_lines_file(translations)
                 max_value = i
+                i += self.batch_size
             remainder = max_value + len(to_translate) % self.batch_size
             if remainder == 0:
                 remainder = max_value + self.batch_size
@@ -171,7 +201,12 @@ class ASSTranslator:
         last_dash_index = 0
         ponctuation_separator = [" ", ",", ";", ".", "!", "?"]
         for char in subline:
-            if char == "-" and subline[index + 1] != "-" and index > 0 and subline[index - 1] in ponctuation_separator:
+            if (
+                char == "-"
+                and subline[index + 1] != "-"
+                and index > 0
+                and subline[index - 1] in ponctuation_separator
+            ):
                 subline = subline[:index] + "\\N" + subline[index:]
                 index += 2
                 last_dash_index = index
@@ -190,7 +225,9 @@ class ASSTranslator:
             index += 1
         return subline
 
-    def recombine(self, translations: list[Translated], lines_to_translate: list[str]) -> list[str]:
+    def recombine(
+        self, translations: list[Translated], lines_to_translate: list[str]
+    ) -> list[str]:
         new_lines = []
         try:
             for _ in lines_to_translate:
@@ -198,15 +235,15 @@ class ASSTranslator:
                     break
 
                 if "deepl" in self.api:
-                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
-                        " 0x00 <x>0x00</x> ", " -"
-                    )
-                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
-                        " 0x00 <x>0x00</x>", " -"
-                    )
-                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
-                        "0x00 <x>0x00</x>", " -"
-                    )
+                    translations[self.index_recombine].text = translations[
+                        self.index_recombine
+                    ].text.replace(" 0x00 <x>0x00</x> ", " -")
+                    translations[self.index_recombine].text = translations[
+                        self.index_recombine
+                    ].text.replace(" 0x00 <x>0x00</x>", " -")
+                    translations[self.index_recombine].text = translations[
+                        self.index_recombine
+                    ].text.replace("0x00 <x>0x00</x>", " -")
                 # elif self.api == 'google':
                 #     translations[self.index_recombine].text = translations[self.index_recombine].text.replace('\ n', '\\N')
 
@@ -226,7 +263,9 @@ class ASSTranslator:
                     translations[self.index_recombine].text
                 )
 
-                pos = self.find_nth(lines_to_translate[self.index_recombine], ",", 9) + 1
+                pos = (
+                    self.find_nth(lines_to_translate[self.index_recombine], ",", 9) + 1
+                )
                 subline = "".join(
                     (
                         lines_to_translate[self.index_recombine][:pos],
@@ -269,7 +308,9 @@ class ASSTranslator:
         if self.index_recombine > 0:
             append = True
         translated_dialogue = self.recombine(translated_lines, self.lines_to_translate)
-        full_ass = self.add_header(self.start_line, self.raw_lines, translated_dialogue, append)
+        full_ass = self.add_header(
+            self.start_line, self.raw_lines, translated_dialogue, append
+        )
         self.write_file(full_ass, append)
 
     def run(self) -> None:

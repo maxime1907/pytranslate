@@ -70,3 +70,15 @@ venv-python3.10
 # sub files
 *.ass
 *.srt
+
+# cog
+cog.exe
+
+# junit
+junit.xml
+
+# ruff
+.ruff_cache
+
+# pytest
+.pytest_cache
