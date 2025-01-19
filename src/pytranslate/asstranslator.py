@@ -203,6 +203,7 @@ class ASSTranslator:
         for char in subline:
             if (
                 char == "-"
+                and index + 1 < len(subline)
                 and subline[index + 1] != "-"
                 and index > 0
                 and subline[index - 1] in ponctuation_separator
@@ -214,6 +215,7 @@ class ASSTranslator:
                 next_br = True
             if (
                 next_br
+                and index + 1 < len(subline)
                 and len(subline[index + 1 :]) > 0
                 and subline[index + 1] not in ponctuation_separator
                 and char in ponctuation_separator
