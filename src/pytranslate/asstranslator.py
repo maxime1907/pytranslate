@@ -7,6 +7,8 @@ from typing import cast
 from deepl import deepl
 from googletrans import Translator
 
+from pytranslate.utils import add_carriage_return
+
 logger = logging.getLogger(__name__)
 
 
@@ -194,39 +196,6 @@ class ASSTranslator:
 
         return to_translate
 
-    def add_carriage_return(self, original_subline: str) -> str:
-        subline = " ".join(original_subline.split())
-        next_br = False
-        index = 0
-        last_dash_index = 0
-        ponctuation_separator = [" ", ",", ";", ".", "!", "?"]
-        for char in subline:
-            if (
-                char == "-"
-                and index + 1 < len(subline)
-                and subline[index + 1] != "-"
-                and index > 0
-                and subline[index - 1] in ponctuation_separator
-            ):
-                subline = subline[:index] + "\\N" + subline[index:]
-                index += 2
-                last_dash_index = index
-            if index - last_dash_index > 37:
-                next_br = True
-            if (
-                next_br
-                and index + 1 < len(subline)
-                and len(subline[index + 1 :]) > 0
-                and subline[index + 1] not in ponctuation_separator
-                and char in ponctuation_separator
-            ):
-                subline = subline[: index + 1] + "\\N" + subline[index + 1 :]
-                index += 2
-                last_dash_index = index
-                next_br = False
-            index += 1
-        return subline
-
     def recombine(
         self, translations: list[Translated], lines_to_translate: list[str]
     ) -> list[str]:
@@ -261,7 +230,7 @@ class ASSTranslator:
                 translations[self.index_recombine].text = self.decode_special_chars(
                     translations[self.index_recombine].text
                 )
-                translations[self.index_recombine].text = self.add_carriage_return(
+                translations[self.index_recombine].text = add_carriage_return(
                     translations[self.index_recombine].text
                 )
 
