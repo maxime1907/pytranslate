@@ -18,6 +18,9 @@ jobs:
   container:
     name: Containerfile
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: false
       matrix:
