@@ -4,15 +4,14 @@ Translate files for free using different APIs
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.12+
 
 ## Installation
 
 ```bash
-python3 -m venv .venv
-. venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+python -m pip install uv
+uv venv .venv && . .venv/bin/activate
+uv sync --frozen
 ```
 
 ## Supported
