@@ -14,9 +14,7 @@ def add_carriage_return(original_text: str, max_line_length: int = 37) -> str:
             and cleaned_text[current_index + 1] != "-"
             and cleaned_text[current_index - 1] in punctuation_separators
         ):
-            cleaned_text = (
-                cleaned_text[:current_index] + "\\N" + cleaned_text[current_index:]
-            )
+            cleaned_text = cleaned_text[:current_index] + "\\N" + cleaned_text[current_index:]
             current_index += 2
             last_hyphen_break_index = current_index
 
@@ -32,11 +30,7 @@ def add_carriage_return(original_text: str, max_line_length: int = 37) -> str:
             and cleaned_text[current_index + 1] not in punctuation_separators
             and character in punctuation_separators
         ):
-            cleaned_text = (
-                cleaned_text[: current_index + 1]
-                + "\\N"
-                + cleaned_text[current_index + 1 :]
-            )
+            cleaned_text = cleaned_text[: current_index + 1] + "\\N" + cleaned_text[current_index + 1 :]
             current_index += 2
             last_hyphen_break_index = current_index
             should_insert_break = False

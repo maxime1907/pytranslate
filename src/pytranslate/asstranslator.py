@@ -12,7 +12,7 @@ from pytranslate.utils import add_carriage_return
 logger = logging.getLogger(__name__)
 
 
-class Translated(object):
+class Translated:
     """Translate result object
     :param text: translated text
     """
@@ -46,9 +46,7 @@ class ASSTranslator:
 
     def googletranslate(self, to_translate: list[str]) -> list[Translated]:
         translator = Translator()
-        return cast(
-            list[Translated], translator.translate(to_translate, dest=self.tolang)
-        )
+        return cast(list[Translated], translator.translate(to_translate, dest=self.tolang))
 
     def deeplcli_formatted_input(self, to_translate: list[str] | str) -> str:
         my_to_translate: str = ""
@@ -74,9 +72,7 @@ class ASSTranslator:
         except Exception as e:
             logger.debug("deeplcli:")
             logger.debug(e)
-            logger.debug(
-                "Retrying to translate in " + str(self.sleeptime) + " seconds..."
-            )
+            logger.debug("Retrying to translate in " + str(self.sleeptime) + " seconds...")
             time.sleep(self.sleeptime)
             return self.deeplcli(to_translate)
         return translated
@@ -154,9 +150,7 @@ class ASSTranslator:
                 if self.api == "deepl":
                     char_count = -1
                     while char_count < 0 or char_count >= self.deeplcharlimit:
-                        char_count = self.count_characters(
-                            self.deeplcli_formatted_input(to_translate[max_value:y])
-                        )
+                        char_count = self.count_characters(self.deeplcli_formatted_input(to_translate[max_value:y]))
                         y = y - 1
                     i = y
                 else:
@@ -196,9 +190,7 @@ class ASSTranslator:
 
         return to_translate
 
-    def recombine(
-        self, translations: list[Translated], lines_to_translate: list[str]
-    ) -> list[str]:
+    def recombine(self, translations: list[Translated], lines_to_translate: list[str]) -> list[str]:
         new_lines = []
         try:
             for _ in lines_to_translate:
@@ -206,17 +198,19 @@ class ASSTranslator:
                     break
 
                 if "deepl" in self.api:
-                    translations[self.index_recombine].text = translations[
-                        self.index_recombine
-                    ].text.replace(" 0x00 <x>0x00</x> ", " -")
-                    translations[self.index_recombine].text = translations[
-                        self.index_recombine
-                    ].text.replace(" 0x00 <x>0x00</x>", " -")
-                    translations[self.index_recombine].text = translations[
-                        self.index_recombine
-                    ].text.replace("0x00 <x>0x00</x>", " -")
-                # elif self.api == 'google':
-                #     translations[self.index_recombine].text = translations[self.index_recombine].text.replace('\ n', '\\N')
+                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
+                        " 0x00 <x>0x00</x> ", " -"
+                    )
+                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
+                        " 0x00 <x>0x00</x>", " -"
+                    )
+                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
+                        "0x00 <x>0x00</x>", " -"
+                    )
+                # elif self.api == "google":
+                #     translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
+                #         r"\ n", "\\N"
+                #     )
 
                 # If its people singing, skip it and leave the original lyrics
                 if "♪" in lines_to_translate[self.index_recombine]:
@@ -230,13 +224,9 @@ class ASSTranslator:
                 translations[self.index_recombine].text = self.decode_special_chars(
                     translations[self.index_recombine].text
                 )
-                translations[self.index_recombine].text = add_carriage_return(
-                    translations[self.index_recombine].text
-                )
+                translations[self.index_recombine].text = add_carriage_return(translations[self.index_recombine].text)
 
-                pos = (
-                    self.find_nth(lines_to_translate[self.index_recombine], ",", 9) + 1
-                )
+                pos = self.find_nth(lines_to_translate[self.index_recombine], ",", 9) + 1
                 subline = "".join(
                     (
                         lines_to_translate[self.index_recombine][:pos],
@@ -279,9 +269,7 @@ class ASSTranslator:
         if self.index_recombine > 0:
             append = True
         translated_dialogue = self.recombine(translated_lines, self.lines_to_translate)
-        full_ass = self.add_header(
-            self.start_line, self.raw_lines, translated_dialogue, append
-        )
+        full_ass = self.add_header(self.start_line, self.raw_lines, translated_dialogue, append)
         self.write_file(full_ass, append)
 
     def run(self) -> None:

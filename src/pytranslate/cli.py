@@ -68,9 +68,7 @@ def cli(
 
     file_extension = pathlib.Path(input).suffix
     if file_extension == ".ass":
-        translator = ASSTranslator(
-            file=input, tolang=destination, fromlang=source, api=api
-        )
+        translator = ASSTranslator(file=input, tolang=destination, fromlang=source, api=api)
         translator.run()
     else:
         raise Exception("File type not supported")

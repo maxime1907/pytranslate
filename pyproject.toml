@@ -1,0 +1,98 @@
+[project]
+name = "pytranslate"
+description = "Advanced SubStation Alpha translation service"
+dynamic = ["version"]
+keywords = ["translation", "subtitles"]
+readme = "README.md"
+authors = [
+    { name = "maxime1907", email = "19607336+maxime1907@users.noreply.github.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+]
+license = { text = "LGPLv3+" }
+requires-python = ">=3.12"
+dependencies = [
+    "click",
+    "deepl-cli",
+    "googletrans",
+    "requests",
+]
+
+[project.urls]
+Homepage = "https://github.com/maxime1907/pytranslate"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pyright",
+    "safety",
+    "pytest",
+]
+
+[project.scripts]
+pytranslate = "pytranslate.cli:cli"
+
+[build-system]
+requires = ["setuptools>=69.1"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = true
+
+[tool.setuptools.dynamic]
+version = { attr = "pytranslate.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["*.tests", "*.tests.*", "tests.*", "tests"]
+
+[tool.setuptools.package-data]
+pytranslate = ["py.typed"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+extraPaths = ["src/"]
+include = ["src"]
+useLibraryCodeForTypes = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+exclude = [
+    ".bzr",
+    ".git",
+    ".svn",
+    ".hg",
+    "typings"
+]
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle
+    "F", # pyflakes
+    "I", # isort
+    "Q", # flake8-quotes-q
+    "S",  # flake8-bandit-s
+    "UP", # pyupgrade
+    "W",  # pycodestyle
+]
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-wrap-aliases = true
+forced-separate = ["tests"]
+known-local-folder = [
+    "pytranslate",
+    "src",
+    "tests"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/__init__.py" = ["F401"]
