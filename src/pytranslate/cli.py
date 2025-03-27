@@ -71,4 +71,4 @@ def cli(
         translator = ASSTranslator(file=input, tolang=destination, fromlang=source, api=api)
         translator.run()
     else:
-        raise Exception("File type not supported")
+        raise Exception(f"File extension <{file_extension}> not supported")
