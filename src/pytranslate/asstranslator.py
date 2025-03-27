@@ -67,12 +67,10 @@ class ASSTranslator:
             my_translated_list = self.deeplcli_formatted_output(my_translated)
             for my_translated_str in my_translated_list:
                 translated.append(Translated(text=my_translated_str))
-            logger.debug("Next request in " + str(self.deeplsleeptime) + " seconds...")
+            logger.debug(f"Next request in {self.deeplsleeptime} seconds...")
             time.sleep(self.deeplsleeptime)
         except Exception as e:
-            logger.debug("deeplcli:")
-            logger.debug(e)
-            logger.debug("Retrying to translate in " + str(self.sleeptime) + " seconds...")
+            logger.debug(f"deeplcli error: {e}, retrying in {self.sleeptime} seconds...")
             time.sleep(self.sleeptime)
             return self.deeplcli(to_translate)
         return translated
@@ -140,106 +138,111 @@ class ASSTranslator:
             translations += self.translate_sentence(to_translate)
             self.append_lines_file(translations)
         else:
-            max_value = 0
-            i = self.batch_size
-            while i < len(to_translate):
-                if max_value == i:
-                    break
+            self.process_batches(to_translate, translations)
 
-                y = i
-                if self.api == "deepl":
-                    char_count = -1
-                    while char_count < 0 or char_count >= self.deeplcharlimit:
-                        char_count = self.count_characters(self.deeplcli_formatted_input(to_translate[max_value:y]))
-                        y = y - 1
-                    i = y
-                else:
-                    char_count = self.count_characters(to_translate[max_value:y])
-
-                logger.info(
-                    f"Processing line <{max_value}> to <{i}> (Characters: {char_count})",
-                )
-                translations += self.translate_sentence(to_translate[max_value:i])
-                self.append_lines_file(translations)
-                max_value = i
-                i += self.batch_size
-            remainder = max_value + len(to_translate) % self.batch_size
-            if remainder == 0:
-                remainder = max_value + self.batch_size
-            logger.info(
-                f"Processing line <{max_value}> to <{remainder}>",
-            )
-            translations += self.translate_sentence(to_translate[max_value:remainder])
-            self.append_lines_file(translations)
         return translations
+
+    def process_batches(self, to_translate: list[str], translations: list[Translated]) -> None:
+        max_value = 0
+        i = self.batch_size
+        while i < len(to_translate):
+            if max_value == i:
+                break
+
+            y = self.process_batch(to_translate, max_value, i)
+            translations += self.translate_sentence(to_translate[max_value:y])
+            self.append_lines_file(translations)
+            max_value = y
+            i += self.batch_size
+
+        self.process_remainder(to_translate, translations, max_value)
+
+    def process_batch(self, to_translate: list[str], max_value: int, i: int) -> int:
+        y = i
+        if self.api == "deepl":
+            char_count = -1
+            while char_count < 0 or char_count >= self.deeplcharlimit:
+                char_count = self.count_characters(self.deeplcli_formatted_input(to_translate[max_value:y]))
+                y = y - 1
+        else:
+            char_count = self.count_characters(to_translate[max_value:y])
+
+        logger.info(f"Processing line <{max_value}> to <{y}> (Characters: {char_count})")
+        return y
+
+    def process_remainder(self, to_translate: list[str], translations: list[Translated], max_value: int) -> None:
+        remainder = max_value + len(to_translate) % self.batch_size
+        if remainder == 0:
+            remainder = max_value + self.batch_size
+        logger.info(f"Processing line <{max_value}> to <{remainder}>")
+        translations += self.translate_sentence(to_translate[max_value:remainder])
+        self.append_lines_file(translations)
 
     def extract_string(self, lines: list[str]) -> list[str]:
         to_translate: list[str] = []
         for line in lines:
-            pos = self.find_nth(line, ",", 9) + 1
-            subline = line[pos:]
-            self.find_special_chars(subline)
-            subline = self.encode_special_chars(subline)
-            subline = subline.replace("\\N", " ")
-            if "deepl" in self.api:
-                # subline = subline.replace('\\N', ' 0x00 <x>0x00</x> ')
-                subline = subline.replace(" -", " 0x00 <x>0x00</x> ")
-            # elif self.api == 'google':
-            #     subline = subline.replace('\\N', ' \\N ')
-            to_translate += [subline]
-
+            subline = self.extract_subline(line)
+            subline = self.process_subline(subline)
+            to_translate.append(subline)
         return to_translate
 
-    def recombine(self, translations: list[Translated], lines_to_translate: list[str]) -> list[str]:
-        new_lines = []
+    def extract_subline(self, line: str) -> str:
+        pos = self.find_nth(line, ",", 9) + 1
+        return line[pos:]
+
+    def process_subline(self, subline: str) -> str:
+        self.find_special_chars(subline)
+        subline = self.encode_special_chars(subline)
+        subline = subline.replace("\\N", " ")
+
+        if "deepl" in self.api:
+            subline = subline.replace(" -", " 0x00 <x>0x00</x> ")
+
+        return subline
+
+    def recombine(self, translated_lines: list[Translated], lines_to_translate: list[str]) -> list[str]:
+        combined_lines = []
         try:
-            for _ in lines_to_translate:
-                if self.index_recombine >= len(translations):
+            for line in lines_to_translate:
+                if self.index_recombine >= len(translated_lines):
                     break
 
-                if "deepl" in self.api:
-                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
-                        " 0x00 <x>0x00</x> ", " -"
-                    )
-                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
-                        " 0x00 <x>0x00</x>", " -"
-                    )
-                    translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
-                        "0x00 <x>0x00</x>", " -"
-                    )
-                # elif self.api == "google":
-                #     translations[self.index_recombine].text = translations[self.index_recombine].text.replace(
-                #         r"\ n", "\\N"
-                #     )
+                current_translation = translated_lines[self.index_recombine]
 
-                # If its people singing, skip it and leave the original lyrics
-                if "♪" in lines_to_translate[self.index_recombine]:
-                    new_lines += [lines_to_translate[self.index_recombine]]
+                if "deepl" in self.api:
+                    current_translation.text = self.clean_deepl_text(current_translation.text)
+
+                if "♪" in line:
+                    combined_lines.append(line)
                     self.index_recombine += 1
                     continue
 
-                logger.debug(translations[self.index_recombine].text)
-                logger.debug(lines_to_translate[self.index_recombine])
+                logger.debug(current_translation.text)
+                logger.debug(line)
 
-                translations[self.index_recombine].text = self.decode_special_chars(
-                    translations[self.index_recombine].text
-                )
-                translations[self.index_recombine].text = add_carriage_return(translations[self.index_recombine].text)
+                current_translation.text = self.process_translation(current_translation.text)
 
-                pos = self.find_nth(lines_to_translate[self.index_recombine], ",", 9) + 1
-                subline = "".join(
-                    (
-                        lines_to_translate[self.index_recombine][:pos],
-                        translations[self.index_recombine].text,
-                    )
-                )
-                new_lines += [subline]
+                comma_position = self.find_nth(line, ",", 9) + 1
+                combined_subline = line[:comma_position] + current_translation.text
+
+                combined_lines.append(combined_subline)
                 self.index_recombine += 1
         except Exception as err:
             logger.warning(f"Recombine failed: {err}")
             traceback.print_exc()
-            pass
-        return new_lines
+
+        return combined_lines
+
+    def clean_deepl_text(self, text: str) -> str:
+        return (
+            text.replace(" 0x00 <x>0x00</x> ", " -")
+            .replace(" 0x00 <x>0x00</x>", " -")
+            .replace("0x00 <x>0x00</x>", " -")
+        )
+
+    def process_translation(self, text: str) -> str:
+        text = self.decode_special_chars(text)
+        return add_carriage_return(text)
 
     def add_header(
         self,
@@ -248,37 +251,26 @@ class ASSTranslator:
         translated_lines: list[str],
         append: bool,
     ) -> list[str]:
-        header = []
-        if not append:
-            header = raw_lines[:start_line]
-        full_ass = header + translated_lines
-        return full_ass
+        header = raw_lines[:start_line] if not append else []
+        return header + translated_lines
 
     def write_file(self, full_ass: list[str], append: bool) -> None:
-        filename = self.file.replace(".ass", "_[" + self.tolang + "].ass")
-        if not append:
-            fp = open(filename, "w", encoding="utf-8")
-        else:
-            fp = open(filename, "a", encoding="utf-8")
-        for line in full_ass:
-            fp.write(line + "\n")
-        fp.close()
+        filename = self.file.replace(".ass", f"_[{self.tolang}].ass")
+        mode = "a" if append else "w"
+        with open(filename, mode, encoding="utf-8") as fp:
+            fp.writelines(f"{line}\n" for line in full_ass)
 
     def append_lines_file(self, translated_lines: list[Translated]) -> None:
-        append = False
-        if self.index_recombine > 0:
-            append = True
+        append = self.index_recombine > 0
         translated_dialogue = self.recombine(translated_lines, self.lines_to_translate)
         full_ass = self.add_header(self.start_line, self.raw_lines, translated_dialogue, append)
         self.write_file(full_ass, append)
 
     def run(self) -> None:
         if not os.path.exists(self.file):
-            raise Exception(f"File <{self.file}> does not exist!")
+            raise FileNotFoundError(f"File <{self.file}> does not exist!")
 
         self.raw_lines = self.get_lines()
-        self.lines_to_translate, self.start_line = self.extract_lines(
-            self.raw_lines
-        )  # Returns the lines that need to be translated
+        self.lines_to_translate, self.start_line = self.extract_lines(self.raw_lines)
         self.to_translate = self.extract_string(self.lines_to_translate)
         self.translate(self.to_translate)
